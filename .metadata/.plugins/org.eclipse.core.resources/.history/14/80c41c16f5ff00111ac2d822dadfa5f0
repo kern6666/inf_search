@@ -1,0 +1,4 @@
+
+public class DocumentsCollection {
+	private Set<Document> documents;
+}

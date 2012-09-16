@@ -1,0 +1,22 @@
+import java.util.Collection;
+
+
+public class Main {
+	public static void main(String ... args){
+		String dir = null;
+		if(args==null || args.length==0)
+			dir = "txt";
+		else
+		 dir= args[0];
+		 TextSearcher searcher = new TextSearcher();
+		 long curTime =System.currentTimeMillis();
+		 searcher.proccessDir(dir, TextSearcher.SearchStructure.IncidenceMatrix);
+		 System.out.println("Time of dir proccessing: "+(System.currentTimeMillis() - curTime)/1000 +"s");
+		 System.out.println("Count of proccessed words: "+searcher.getWordsCount());
+	}
+	
+	public static void printCollection(Collection<String> c){
+		for(String s:c)
+			System.out.println(s);
+	}
+}

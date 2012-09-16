@@ -1,0 +1,10 @@
+
+public class Document {
+	public final String fullPath;	
+	public final String name;
+	public Document(String fullPath, String name) {
+		super();
+		this.fullPath = fullPath;
+		this.name = name;
+	}
+}

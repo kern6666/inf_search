@@ -1,0 +1,22 @@
+import java.util.HashSet;
+import java.util.Set;
+
+
+public class DocumentsCollection {
+	private String directory;
+	public String) {
+		return this.directory ;
+	}
+	public DocumentsCollection(String directory) {
+		super();
+		this.directory = directory;
+	}
+	private Set<Document> documents = new HashSet<Document>();
+	public Set<Document> getDocuments(){
+		return documents;
+	}
+	public void addDocument(String documentName){
+		if(documentName!=null)
+			documents.add(new Document(documentName));
+	}
+}
