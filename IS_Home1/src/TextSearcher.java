@@ -36,23 +36,27 @@ public class TextSearcher {
 		}
 	}
 	
-	public Set<String> searchInDocuments(String searchText){
+	public TreeSet<String> searchInDocuments(String searchText){
 		String[] words = searchText.split("\\W");
 		if(words == null || words.length==0)
 			return null;
 		for(int i =0;i<words.length;i++)
 			words[i] = normalizeWord(words[i]);
-		HashSet<String> resDocs = new HashSet<String>();
+		TreeSet<String> resDocs = new TreeSet<String>();
 		if(searchStructure == SearchStructure.IncidenceMatrix){
 			boolean[] intersection = new boolean[filesNames.size()]; 
 			Arrays.fill(intersection, true);
+			boolean isEmpty = true;
 			for(String word:words){
 				Integer wordNum = wordsToNum.get(word);
 				if(wordNum!=null){
+					isEmpty = false;
 					for(int i =0;i<filesNames.size();i++)
 						intersection[i]&=incidenceMatrix[wordNum][i];
-				}				
+				}else return null;				
 			}
+			if(isEmpty)
+				return null;
 			for(int i =0;i<filesNames.size();i++)
 				if(intersection[i])
 					resDocs.add(filesNames.get(i));
@@ -61,15 +65,19 @@ public class TextSearcher {
 		}else if(searchStructure == SearchStructure.InverseIndex){
 			TreeSet<Integer> intersection = null;
 			int i =0;
-			while(i<words.length && (intersection = inverseIndex.get(words[i++])) == null );
-			if(intersection == null)
-				return null;
+			intersection = inverseIndex.get(words[i++]);
+			if(intersection== null)
+				return null;	
+			
 			intersection = new TreeSet<Integer>(intersection);
 			
 			while(i<words.length){
 				TreeSet<Integer> inverseList = inverseIndex.get(words[i++]) ;
+				if(inverseList==null)
+					return null;
 				if(inverseList!=null)
 					intersection = intersectInverseLists(intersection,inverseList);
+				else return null;
 			}
 			for(Integer docNum:intersection)
 			if(docNum!=null){
@@ -100,19 +108,19 @@ public class TextSearcher {
 		int i2 ;
 		if(it1.hasNext() && it2.hasNext()){
 			i1 = it1.next();
-			i2 = it1.next();
+			i2 = it2.next();
 		}else return res;
 		do{			
 			if(i1==i2){
 				res.add(i1);
-				i1 = it1.next();
-				i2 = it1.next();
-			}else if(i1>i2){
-				i2 = it2.next();
-			}else
-				i1 = it1.next();
-		}while(it1.hasNext() && it2.hasNext());
-		if(i1==i2)
+				i1 = it1.hasNext()? it1.next():-1;
+				i2 = it2.hasNext()? it2.next():-1;
+			}else if( i1>i2){
+						i2 = it2.hasNext()? it2.next():-1;
+					}else
+						i1 = it1.hasNext()? it1.next():-1;				
+		}while(i1!=-1 && i2!=-1);
+		if(i1==i2 && i1!=-1)
 			res.add(i1);
 		return res;
 	}

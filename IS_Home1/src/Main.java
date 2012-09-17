@@ -1,25 +1,37 @@
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Collection;
+import java.util.TreeSet;
 
 
 public class Main {
 	
 	
 	public static void main(String ... args){
+		try{
 		String dir = null;
-		if(args==null || args.length==0)
-			dir = "txt";
-		else
-		 dir= args[0];
+		TextSearcher.SearchStructure searchtype = TextSearcher.SearchStructure.InverseIndex;
+		if(args!=null)
+			for(String arg:args){
+				if("-m".equals(arg)){
+					searchtype = TextSearcher.SearchStructure.IncidenceMatrix;
+				}else{
+					dir =arg;
+					break;
+				}					
+			}
+		
+		if(dir==null)
+			dir= "txt";
+		
+		 
 		 TextSearcher searcher = new TextSearcher();
 		 long startTime =System.currentTimeMillis();
-		 searcher.proccessDir(dir, TextSearcher.SearchStructure.IncidenceMatrix);
+		 searcher.proccessDir(dir, searchtype);
 		 System.out.println("Time of dir proccessing: "+(System.currentTimeMillis() - startTime)/1000 +"s");
 		 System.out.println("Number of procced documents: " + searcher.getFilesNum());
-		 System.out.println("Number of proccessed words: "+searcher.getWordsCount());
+		 System.out.println("Number of words in dictionary: "+searcher.getWordsCount());
 		 BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 		 String searchString = null;
 		 System.out.println("Enter search string...");
@@ -31,21 +43,35 @@ public class Main {
 		
 		 while(searchString==null || !searchString.trim().toLowerCase().equals("quit") ){
 			 try {
-					searchString = reader.readLine();
+					
 					startTime = System.currentTimeMillis();
-					Collection<String> res = searcher.searchInDocuments(searchString);									
-					System.out.println("Search time: "+(System.currentTimeMillis() - startTime)/1000f +"s");
-					if(res!=null)
-						printCollection(res);
+					TreeSet<String> res = searcher.searchInDocuments(searchString);									
+					System.out.println("Search time: "+(System.currentTimeMillis() - startTime)/1000f +"s");					
+					printCollection(res);					
 					System.out.println("Enter search string...");
+					searchString = reader.readLine();
 				} catch (IOException e) {			
 					e.printStackTrace();
 				}
-		 }
+		 }		
+		}catch(Throwable e){
+			printUsage();
+		}
 		 
 	}
 	
+	private static void printUsage() {
+		System.out.println("search [-m] [<texts directory>]");
+		System.out.println("-m Uses incidence matrix. Default uses inverse index");
+		System.out.println("Print 'quit' to exit.");
+	}
+
 	public static void printCollection(Collection<String> c){
+		if(c==null)
+		{
+			System.out.println("Nothing find.");
+			return ;
+		}
 		System.out.println("Seached files: "+ c.size());
 		for(String s:c){
 			System.out.print(s);
