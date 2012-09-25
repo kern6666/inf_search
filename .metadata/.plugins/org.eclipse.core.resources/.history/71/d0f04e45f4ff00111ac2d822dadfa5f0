@@ -1,6 +1,0 @@
-
-public class Document {
-	public final String fullPath;
-	public final int id;
-	public final String name;
-}

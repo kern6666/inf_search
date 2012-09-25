@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<session version="1.0">
-<refactoring comment="Rename local variable &apos;flag&apos; in &apos;TextSearcher.searchInDocuments(...)&apos; to &apos;isEmpty&apos;&#x0D;&#x0A;- Original project: &apos;IS_Home1&apos;&#x0D;&#x0A;- Original element: &apos;TextSearcher.searchInDocuments(String).flag&apos;&#x0D;&#x0A;- Renamed element: &apos;flag&apos;&#x0D;&#x0A;- Update references to refactored element" description="Rename local variable &apos;flag&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;{TextSearcher.java[TextSearcher~searchInDocuments~QString;@flag!1629!1649!1637!1640!Z!0!false" name="isEmpty" references="true" stamp="1347891700183" version="1.0"/>
-</session>

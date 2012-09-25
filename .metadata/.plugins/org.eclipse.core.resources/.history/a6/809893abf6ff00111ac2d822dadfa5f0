@@ -1,9 +1,0 @@
-
-public class Main {
-	public static void main(String ... args){
-		String dir = null;
-		if(args.length==0)
-			dir = "txt";
-		 dir= args[0];
-	}
-}

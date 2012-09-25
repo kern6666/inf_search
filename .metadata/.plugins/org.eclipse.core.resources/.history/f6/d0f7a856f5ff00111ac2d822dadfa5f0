@@ -1,7 +1,0 @@
-import java.util.Set;
-
-
-public class DocumentsCollection {
-	private Set<Document> documents = new HashSet<Document>();
-	p
-}
