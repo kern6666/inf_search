@@ -9,7 +9,7 @@ public class Main {
     public static void main(String... args) {
 	try {
 	    String dir = null;
-	    TextSearcher.SearchStructure searchtype = TextSearcher.SearchStructure.InverseIndex;
+	    TextSearcher.SearchStructure searchtype = TextSearcher.SearchStructure.InverseIndexWithPositions;
 	    if (args != null)
 		for (String arg : args) {
 		    if ("-m".equals(arg)) {
@@ -56,12 +56,14 @@ public class Main {
 		    System.out.println("Enter search string...");
 		    searchString = reader.readLine();
 		} catch (IOException e) {
-		    e.printStackTrace();
+		    // e.printStackTrace();
 		}
 	    }
-	} catch (Throwable e) {
-	    printUsage();
+	} finally {
 	}
+	// catch (Throwable e) {
+	// printUsage();
+	// }
 
     }
 

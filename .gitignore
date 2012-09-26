@@ -1,6 +1,6 @@
-*.class
+/IS_Home1/bin
 .*
-# Package Files #
 *.jar
 *.war
 *.ear
+*.class

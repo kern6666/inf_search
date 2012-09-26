@@ -6,20 +6,24 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TextSearcher {
 
     private HashMap<String, Integer> wordsToNum;
     private SearchStructure searchStructure;
     private HashMap<String, TreeSet<Integer>> inverseIndex;
+    private HashMap<Integer, HashMap<Integer, Set<Integer>>> twoWordInverseIndex;
+    private HashMap<String, HashMap<Integer, Set<Long>>> inverseIndexWithPositions;
     private boolean[][] incidenceMatrix;
     private ArrayList<String> filesNames;
 
     public enum SearchStructure {
-	IncidenceMatrix, InverseIndex
+	IncidenceMatrix, InverseIndex, TwoWordsInverseIndex, InverseIndexWithPositions
     };
 
     public void proccessDir(String dir, SearchStructure searchStructure) {
@@ -33,10 +37,18 @@ public class TextSearcher {
 	if (searchStructure == SearchStructure.InverseIndex) {
 	    inverseIndex = buildInvertIndex(dir, files);
 	}
+	if (searchStructure == SearchStructure.TwoWordsInverseIndex) {
+	    this.wordsToNum = readAllWordsFromFiles(dir, files);
+	    twoWordInverseIndex = buildTwoWordInvertIndex(dir, files,
+		    wordsToNum);
+	}
+	if (searchStructure == SearchStructure.InverseIndexWithPositions) {
+	    inverseIndexWithPositions = buildInvertWithPositionIndex(dir, files);
+	}
     }
 
     public TreeSet<String> searchInDocuments(String searchText) {
-	String[] words = searchText.split("\\W");
+	String[] words = searchText.split("\\W+");
 	if (words == null || words.length == 0)
 	    return null;
 	for (int i = 0; i < words.length; i++)
@@ -65,7 +77,7 @@ public class TextSearcher {
 	} else if (searchStructure == SearchStructure.InverseIndex) {
 	    TreeSet<Integer> intersection = null;
 	    int i = 0;
-	    intersection = inverseIndex.get(words[i++]);
+	    intersection = new TreeSet<Integer>(inverseIndex.get(words[i++]));
 	    if (intersection == null)
 		return null;
 
@@ -78,16 +90,128 @@ public class TextSearcher {
 		if (inverseList != null)
 		    intersection = intersectInverseLists(intersection,
 			    inverseList);
-		else
-		    return null;
+
 	    }
 	    for (Integer docNum : intersection)
 		if (docNum != null) {
 		    resDocs.add(filesNames.get(docNum));
 		}
 	    return resDocs;
+	} else if (searchStructure == SearchStructure.TwoWordsInverseIndex) {
+	    TreeSet<Integer> resDocsInt = new TreeSet<Integer>();
 
+	    String word = words[0];
+	    Integer wordNum = wordsToNum.get(word);
+	    if (wordNum == null)
+		return null;
+	    HashMap<Integer, Set<Integer>> docToAfterWords = twoWordInverseIndex
+		    .get(wordNum);
+	    if (docToAfterWords == null)
+		return null;
+	    resDocsInt.addAll(docToAfterWords.keySet());
+
+	    if (words.length > 1) {
+
+		for (int i = 0; i < words.length - 1; i++) {
+		    word = words[i];
+		    Integer curWordNum = wordsToNum.get(word);
+		    word = words[i + 1];
+		    Integer nextWordNum = wordsToNum.get(word);
+		    if (curWordNum == null || nextWordNum == null)
+			return null;
+		    HashMap<Integer, Set<Integer>> nextWordsSet = twoWordInverseIndex
+			    .get(curWordNum);
+		    Iterator<Integer> it = resDocsInt.iterator();
+		    while (it.hasNext()) {
+			Integer docNum = it.next();
+			Set<Integer> wordsAfterCurInCurDoc = nextWordsSet
+				.get(docNum);
+			if (wordsAfterCurInCurDoc == null)
+			    it.remove();
+			if (!wordsAfterCurInCurDoc.contains(nextWordNum))
+			    it.remove();
+		    }
+
+		}
+	    }
+	    for (Integer i : resDocsInt)
+		if (i != null) {
+		    resDocs.add(filesNames.get(i));
+		}
+	    return resDocs;
+	} else if (searchStructure == SearchStructure.InverseIndexWithPositions) {
+	    HashMap<Integer, Set<Long>> resDocInt = new HashMap<Integer, Set<Long>>();
+
+	    String[] words1 = searchText.split("[\\W&&[^\\\\]]+");
+	    if (words1 == null || words1.length == 0)
+		return null;
+	    for (int i = 0; i < words1.length; i++)
+		if (words1[i].length() > 1 && words1[i].charAt(0) != '\\')
+		    words1[i] = normalizeWord(words1[i]);
+
+	    HashMap<Integer, Set<Long>> firstWordDocs = inverseIndexWithPositions
+		    .get(words1[0]);
+	    if (firstWordDocs == null)
+		return null;
+	    for (Integer doc : firstWordDocs.keySet()) {
+		Set<Long> wordPos = firstWordDocs.get(doc);
+		Set<Long> sentEnd = new TreeSet<Long>();
+		for (Long start : wordPos) {
+		    sentEnd.add(start + words1[0].length());
+		}
+		resDocInt.put(doc, sentEnd);
+	    }
+
+	    int maxDist = Integer.MAX_VALUE;
+
+	    for (int i = 1; i < words1.length; i++) {
+
+		if (words1[i].charAt(0) == '\\') {
+		    try {
+			maxDist = Integer.parseInt(words1[i].substring(1));
+		    } catch (IndexOutOfBoundsException e) {
+			return null;
+		    } catch (NumberFormatException e) {
+			return null;
+		    }
+		} else {
+
+		    HashMap<Integer, Set<Long>> wordDocs = inverseIndexWithPositions
+			    .get(words1[i]);
+		    if (wordDocs == null)
+			return null;
+
+		    Set<Integer> sentDocs = new TreeSet<Integer>(
+			    resDocInt.keySet());
+		    for (Integer doc : sentDocs) {
+			Set<Long> wordPos = wordDocs.get(doc);
+			if (wordPos == null) {
+			    resDocInt.remove(doc);
+			    continue;
+			}
+			Set<Long> sentEnd = resDocInt.get(doc);
+
+			sentEnd = intersectSentenceAndWord(sentEnd, wordPos,
+				maxDist, words1[i].length());
+			if (sentEnd == null || sentEnd.size() == 0) {
+			    resDocInt.remove(doc);
+			    continue;
+			} else
+			    resDocInt.put(doc, sentEnd);
+
+		    }
+		    maxDist = Integer.MAX_VALUE;
+		}
+
+	    }
+
+	    for (Integer i : resDocInt.keySet())
+		if (i != null) {
+		    resDocs.add(filesNames.get(i));
+		}
+	    return resDocs;
 	}
+
 	return null;
     }
 
@@ -128,16 +252,39 @@ public class TextSearcher {
 	return res;
     }
 
-    private static HashMap<String, TreeSet<DocWords>> buildTwoWordInvertIndex(
-	    String dir, ArrayList<String> files) {
-	HashMap<String, TreeSet<DocWords>> res = new HashMap<String, TreeSet<DocWords>>();
-	HashMap<String, Integer> wordToNum = readAllWordsFromFiles(dir, files);
+    private static HashMap<Integer, HashMap<Integer, Set<Integer>>> buildTwoWordInvertIndex(
+	    String dir, ArrayList<String> files,
+	    HashMap<String, Integer> wordToNum) {
+	HashMap<Integer, HashMap<Integer, Set<Integer>>> res = new HashMap<Integer, HashMap<Integer, Set<Integer>>>();
 	for (int i = 0; i < files.size(); i++) {
 	    String file = files.get(i);
 	    FileReader fin = null;
 	    try {
 		fin = new FileReader(new File(dir, file));
 		proccessFile(fin, res, Integer.valueOf(i), wordToNum);
+	    } catch (Exception e) {
+		e.printStackTrace();
+	    } finally {
+		if (fin != null)
+		    try {
+			fin.close();
+		    } catch (IOException e) {
+			e.printStackTrace();
+		    }
+	    }
+	}
+	return res;
+    }
+
+    private HashMap<String, HashMap<Integer, Set<Long>>> buildInvertWithPositionIndex(
+	    String dir, ArrayList<String> files) {
+	HashMap<String, HashMap<Integer, Set<Long>>> res = new HashMap<String, HashMap<Integer, Set<Long>>>();
+	for (int i = 0; i < files.size(); i++) {
+	    String file = files.get(i);
+	    FileReader fin = null;
+	    try {
+		fin = new FileReader(new File(dir, file));
+		proccessFileWordPosition(fin, res, i);
 	    } catch (Exception e) {
 		e.printStackTrace();
 	    } finally {
@@ -182,7 +329,7 @@ public class TextSearcher {
 	BufferedReader breader = new BufferedReader(fin);
 	String line;
 	while ((line = breader.readLine()) != null) {
-	    String[] words = line.split("\\W");
+	    String[] words = line.split("\\W+");
 	    for (String word : words) {
 		word = normalizeWord(word);
 		if (!res.containsKey(word))
@@ -194,23 +341,36 @@ public class TextSearcher {
     }
 
     private static void proccessFile(FileReader fin,
-	    HashMap<Integer, TreeSet<DocWords>> res, Integer fileNum,
-	    HashMap<String, Integer> wordToNum)
+	    HashMap<Integer, HashMap<Integer, Set<Integer>>> res,
+	    Integer fileNum, HashMap<String, Integer> wordToNum)
 	    throws IOException {
 	BufferedReader breader = new BufferedReader(fin);
 	String line;
 	Integer prevWordNum = -1;
 	while ((line = breader.readLine()) != null) {
-	    String[] words = line.split("\\W");
+	    String[] words = line.split("\\W+");
 
 	    for (int i = 0; i < words.length; i++) {
-		String word = normalizeWord(word);
+		String word = normalizeWord(words[i]);
 		Integer wordNum = wordToNum.get(word);
-		if (!res.containsKey(wordNum))
-		    res.put(word, new TreeSet<DocType>());
-		TreeSet<Integer> invList = res.get(word);
-		invList.add(fileNum);
+		if (prevWordNum == -1) {
+		    prevWordNum = wordNum;
+		    continue;
+		}
+		if (!res.containsKey(prevWordNum))
+		    res.put(prevWordNum, new HashMap<Integer, Set<Integer>>());
+		HashMap<Integer, Set<Integer>> invList = res.get(prevWordNum);
+		Set<Integer> wordsAfterInFile;
+		if (invList.containsKey(fileNum)) {
+		    wordsAfterInFile = invList.get(fileNum);
+		} else {
+		    wordsAfterInFile = new TreeSet<Integer>();
+		    invList.put(fileNum, wordsAfterInFile);
+		}
+		wordsAfterInFile.add(wordNum);
+		prevWordNum = wordNum;
 	    }
+
 	}
     }
 
@@ -275,7 +435,7 @@ public class TextSearcher {
 	BufferedReader breader = new BufferedReader(fin);
 	String line;
 	while ((line = breader.readLine()) != null) {
-	    String[] words = line.split("\\W");
+	    String[] words = line.split("\\W+");
 	    for (String word : words) {
 		word = normalizeWord(word);
 		incidenceMatrix[wordToNum.get(word)][fileNum] = true;
@@ -306,7 +466,7 @@ public class TextSearcher {
 	    TreeSet<String> words) throws IOException {
 	String line;
 	while ((line = fileReader.readLine()) != null) {
-	    String[] lineWords = line.split("\\W");
+	    String[] lineWords = line.split("\\W+");
 	    for (String word : lineWords) {
 		word = normalizeWord(word);
 		words.add(word);
@@ -323,14 +483,63 @@ public class TextSearcher {
 	return filesNames == null ? 0 : filesNames.size();
     }
 
-    public static class DocWords  implements IComparable<DocWords>{
-	public final Integer fileNum;
-	public final HashSet<Integer> wordPairs = new HashSet<Integer>();
+    private Integer startWord = 0;
 
-	public DocWords(Integer fileNum) {
-	    super();
-	    this.fileNum = fileNum;
+    private String nextWord(String in, Integer wordStart, Matcher matcher) {
+	if (!matcher.find())
+	    return null;
+	startWord = matcher.start();
+	return in.substring(startWord, matcher.end());
+    }
+
+    private void proccessFileWordPosition(FileReader fin,
+	    HashMap<String, HashMap<Integer, Set<Long>>> res, Integer fileNum)
+	    throws IOException {
+	BufferedReader breader = new BufferedReader(fin);
+	String line;
+	long curPos = 0;
+	startWord = 0;
+	while ((line = breader.readLine()) != null) {
+	    Pattern pattern = Pattern.compile("[\\w]+");
+	    Matcher matcher = pattern.matcher(line);
+	    String word = null;
+	    while ((word = nextWord(line, startWord, matcher)) != null) {
+		word = normalizeWord(word);
+		HashMap<Integer, Set<Long>> invList = res.get(word);
+		if (invList == null) {
+		    invList = new HashMap<Integer, Set<Long>>();
+		    res.put(word, invList);
+		}
+		Set<Long> wordPos = invList.get(fileNum);
+		if (wordPos == null) {
+		    wordPos = new TreeSet<Long>();
+		    invList.put(fileNum, wordPos);
+		}
+		wordPos.add(curPos + startWord);
+	    }
+	    curPos += line.length();
 	}
-	
-    };
+    }
+
+    private TreeSet<Long> intersectSentenceAndWord(Set<Long> sentceEndSet,
+	    Set<Long> wordStartsSet, int maxDist, int wordLen) {
+	TreeSet<Long> newSentenceEnd = new TreeSet<Long>();
+	if (sentceEndSet.size() == 0 || wordStartsSet.size() == 0)
+	    return newSentenceEnd;
+	Iterator<Long> itWordSet = wordStartsSet.iterator();
+
+	while (itWordSet.hasNext()) {
+	    long wordStart = itWordSet.next();
+	    Iterator<Long> itSentenceEnd = sentceEndSet.iterator();
+	    while (itSentenceEnd.hasNext()) {
+		long sentenceEnd = itSentenceEnd.next();
+		if (Math.abs(wordStart - sentenceEnd) <= maxDist) {
+		    newSentenceEnd.add(wordStart + wordLen);
+		    break;
+		}
+	    }
+	}
+	return newSentenceEnd;
+    }
+
 }
