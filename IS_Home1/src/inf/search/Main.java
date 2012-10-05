@@ -1,3 +1,4 @@
+package inf.search;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -23,9 +24,11 @@ public class Main {
 	    if (dir == null)
 		dir = "txt";
 
-	    TextSearcher searcher = new TextSearcher();
+	    // TextSearcher searcher = new TextSearcher();
+	    AbstractTextSearcher searcher = new K3GramIndexSearcher();
 	    long startTime = System.currentTimeMillis();
-	    searcher.proccessDir(dir, searchtype);
+	    // searcher.proccessDir(dir, searchtype);
+	    searcher.proccessDir(dir);
 	    System.out.println("Time of dir proccessing: "
 		    + (System.currentTimeMillis() - startTime) / 1000 + "s");
 	    System.out.println("Number of procced documents: "
@@ -58,6 +61,11 @@ public class Main {
 		} catch (IOException e) {
 		    // e.printStackTrace();
 		}
+	    }
+	    try {
+		reader.close();
+	    } catch (IOException e) {
+		e.printStackTrace();
 	    }
 	} finally {
 	}

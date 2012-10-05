@@ -1,3 +1,4 @@
+package inf.search;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -12,6 +13,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Deprecated
 public class TextSearcher {
 
     private HashMap<String, Integer> wordsToNum;
